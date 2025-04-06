@@ -3,6 +3,7 @@ OldAdvisor.py
 OldAdvisor2.py
 Old2.py
 .streamlit/
+dbconnector.py
 
 
 # Byte-compiled / optimized / DLL files
