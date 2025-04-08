@@ -1886,8 +1886,8 @@ def validate_attendance_data(df):
 # Function to overwrite table data with the newly uploaded file
 def overwrite_table(table_name, df):
     conn = mysql.connector.connect(**mydb())
-    connection = conn()       # <-- add the parentheses
-    c = connection.cursor()
+    
+    c = conn.cursor()
     
     # Delete existing data
     c.execute(f"DELETE FROM {table_name}")
