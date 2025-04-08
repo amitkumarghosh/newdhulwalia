@@ -218,55 +218,41 @@ def workstation_interface(user_workstation_id):
         conn.close()
 
 
-def daily_advisor_data_entry(user_workstation_id,supervisor_name):
-    
+def daily_advisor_data_entry(user_workstation_id, supervisor_name):
     st.markdown('''###    :blue[Daily Advisor Data Entry]''')
     conn = mysql.connector.connect(**mydb())
     cursor = conn.cursor()
+
     try:
-        # Retrieve Advisor names under the current Workstation
         cursor.execute("SELECT name FROM User_Credentials WHERE Supervisor_Code = %s AND User_Role = 'Advisor'", (user_workstation_id,))
         advisors = cursor.fetchall()
 
-        # Get the date from the date picker
         start_date = datetime.now() - timedelta(days=180)
         selected_date = st.date_input("Select Date", value=datetime.now().date(), min_value=start_date.date(), max_value=datetime.now().date())
-    
-        # Display headers as a fixed row
+
         st.markdown(
             "<style>div.row-header {display: flex; justify-content: space-between; font-weight: bold;}</style>",
             unsafe_allow_html=True
         )
         st.markdown('<div class="row-header">', unsafe_allow_html=True)
         col1, col2, col3, col4, col5, col6, col7, col8, col9, col10 = st.columns([1.5, 1.5, 2, 2, 2, 2, 2, 2, 2, 2])
-        with col1:
-            st.write("Advisor Name")
-        with col2:
-            st.write("Edit")
-        with col3:
-            st.write("Running Repair")
-        with col4:
-            st.write("Free Service")
-        with col5:
-            st.write("Paid Service")
-        with col6:
-            st.write("Body Shop")
-        with col7:
-            st.write("Total")
-        with col8:
-            st.write("Align")
-        with col9:
-            st.write("Balance")
-        with col10:
-            st.write("Align and Balance")
+        with col1: st.write("Advisor Name")
+        with col2: st.write("Edit")
+        with col3: st.write("Running Repair")
+        with col4: st.write("Free Service")
+        with col5: st.write("Paid Service")
+        with col6: st.write("Body Shop")
+        with col7: st.write("Total")
+        with col8: st.write("Align")
+        with col9: st.write("Balance")
+        with col10: st.write("Align and Balance")
         st.markdown('</div>', unsafe_allow_html=True)
 
-        # Display rows for each advisor
         rows_data = []
+
         for advisor in advisors:
             advisor_name = advisor[0]
 
-            # Check if data exists for the selected date and advisor
             cursor.execute("""
                 SELECT running_repair, free_service, paid_service, body_shop, align, balance
                 FROM Advisor_Data
@@ -274,18 +260,16 @@ def daily_advisor_data_entry(user_workstation_id,supervisor_name):
             """, (selected_date, advisor_name))
             result = cursor.fetchone()
 
-            # Set initial values based on existing data if found, or default values if not
             if result:
                 initial_running_repair, initial_free_service, initial_paid_service, initial_body_shop, initial_align, initial_balance = result
             else:
                 initial_running_repair = initial_free_service = initial_paid_service = initial_body_shop = initial_align = initial_balance = 0
 
-            # Arrange input fields in columns
             col1, col2, col3, col4, col5, col6, col7, col8, col9, col10 = st.columns([1.5, 1.5, 2, 2, 2, 2, 2, 2, 2, 2])
             with col1:
                 st.write(advisor_name)
             with col2:
-                edit_row = st.checkbox("", key=f"edit_{advisor_name}")  # Checkbox in its own column
+                edit_row = st.checkbox("", key=f"edit_{advisor_name}")
             with col3:
                 running_repair = st.number_input(f"Running Repair {advisor_name}", min_value=0, value=initial_running_repair, step=1, key=f"rr_{advisor_name}", disabled=not edit_row, max_value=9999, label_visibility="collapsed")
             with col4:
@@ -295,22 +279,19 @@ def daily_advisor_data_entry(user_workstation_id,supervisor_name):
             with col6:
                 body_shop = st.number_input(f"Body Shop {advisor_name}", min_value=0, value=initial_body_shop, step=1, key=f"bs_{advisor_name}", disabled=not edit_row, max_value=9999, label_visibility="collapsed")
 
-            # Total Calculation
             total = running_repair + free_service + paid_service + body_shop
             with col7:
-                st.write(total)  # Display total for reference
+                st.write(total)
 
             with col8:
                 align = st.number_input(f"Align {advisor_name}", min_value=0, value=initial_align, step=1, key=f"al_{advisor_name}", disabled=not edit_row, max_value=9999, label_visibility="collapsed")
             with col9:
                 balance = st.number_input(f"Balance {advisor_name}", min_value=0, value=initial_balance, step=1, key=f"bal_{advisor_name}", disabled=not edit_row, max_value=9999, label_visibility="collapsed")
 
-            # Align and Balance Calculation
             align_and_balance = align + balance
             with col10:
-                st.write(align_and_balance)  # Display align_and_balance for reference
+                st.write(align_and_balance)
 
-            # Only add data to rows_data if the row is editable
             if edit_row:
                 rows_data.append({
                     "date": selected_date,
@@ -325,87 +306,67 @@ def daily_advisor_data_entry(user_workstation_id,supervisor_name):
                     "align_and_balance": align_and_balance
                 })
 
-            # Add a horizontal line after each advisor row
             st.markdown("---")
 
-            if st.button("Submit Data"):
-                if rows_data:  # Only process if at least one row is edited
-                    conn = mysql.connector.connect(**mydb())
-                    cursor = conn.cursor()
-                    try:
-                        
-                            kolkata_time = get_kolkata_time()
+        # ✅ Single "Submit Data" button outside the loop
+        if st.button("Submit Data"):
+            if rows_data:
+                try:
+                    kolkata_time = get_kolkata_time()
 
-                            # Fetch workstation name based on the logged-in user's code
+                    cursor.execute("""SELECT Name FROM User_Credentials WHERE Code = %s""", (user_workstation_id,))
+                    workstation_data = cursor.fetchone()
+                    workstation_name = workstation_data[0] if workstation_data else "Unknown"
+
+                    cursor.execute("""SELECT Supervisor_Code FROM User_Credentials WHERE Code = %s""", (user_workstation_id,))
+                    supervisor_code_data = cursor.fetchone()
+                    supervisor_code = supervisor_code_data[0] if supervisor_code_data else "Unknown"
+
+                    for entry in rows_data:
+                        cursor.execute("""
+                            SELECT COUNT(*) FROM Advisor_Data 
+                            WHERE date = %s AND advisor_name = %s
+                        """, (entry["date"], entry["advisor_name"]))
+                        record_exists = cursor.fetchone()[0] > 0
+
+                        if record_exists:
                             cursor.execute("""
-                                SELECT Name FROM User_Credentials 
-                                WHERE Code = %s
-                            """, (user_workstation_id,))
-                            workstation_data = cursor.fetchone()
-                            workstation_name = workstation_data[0] if workstation_data else "Unknown"
-
-                            # Fetch supervisor code based on the workstation's supervisor code
+                                UPDATE Advisor_Data 
+                                SET running_repair = %s, free_service = %s, paid_service = %s, 
+                                    body_shop = %s, total = %s, align = %s, balance = %s, 
+                                    align_and_balance = %s, timestamp = %s, 
+                                    workstation_name = %s, supervisor_name = %s
+                                WHERE date = %s AND advisor_name = %s
+                            """, (
+                                entry["running_repair"], entry["free_service"], entry["paid_service"],
+                                entry["body_shop"], entry["total"], entry["align"],
+                                entry["balance"], entry["align_and_balance"], kolkata_time,
+                                workstation_name, supervisor_code,
+                                entry["date"], entry["advisor_name"]
+                            ))
+                        else:
                             cursor.execute("""
-                                SELECT Supervisor_Code FROM User_Credentials 
-                                WHERE Code = %s
-                            """, (user_workstation_id,))
-                            supervisor_code_data = cursor.fetchone()
-                            supervisor_code = supervisor_code_data[0] if supervisor_code_data else "Unknown"
+                                INSERT INTO Advisor_Data (date, timestamp, advisor_name, workstation_name, 
+                                    supervisor_name, running_repair, free_service, 
+                                    paid_service, body_shop, total, 
+                                    align, balance, align_and_balance)
+                                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                            """, (
+                                entry["date"], kolkata_time, entry["advisor_name"], workstation_name,
+                                supervisor_code,
+                                entry["running_repair"], entry["free_service"],
+                                entry["paid_service"], entry["body_shop"],
+                                entry["total"], entry["align"], entry["balance"], entry["align_and_balance"]
+                            ))
 
-                            for entry in rows_data:
-                                # First, check if a record exists for this advisor & date
-                                cursor.execute("""
-                                    SELECT COUNT(*) FROM Advisor_Data 
-                                    WHERE date = %s AND advisor_name = %s
-                                """, (entry["date"], entry["advisor_name"]))
-                                record_exists = cursor.fetchone()[0] > 0
+                    conn.commit()
+                    st.success("Advisor data submitted successfully!")
+                except Exception as e:
+                    st.error(f"Error while saving data: {e}")
 
-                                if record_exists:
-                                    # If record exists, update it
-                                    cursor.execute("""
-                                        UPDATE Advisor_Data 
-                                        SET running_repair = %s, free_service = %s, paid_service = %s, 
-                                            body_shop = %s, total = %s, align = %s, balance = %s, 
-                                            align_and_balance = %s, timestamp = %s, 
-                                            workstation_name = %s, supervisor_name = %s
-                                        WHERE date = %s AND advisor_name = %s
-                                    """, (
-                                        entry["running_repair"], entry["free_service"], entry["paid_service"], 
-                                        entry["body_shop"], entry["total"], entry["align"], 
-                                        entry["balance"], entry["align_and_balance"], kolkata_time,
-                                        workstation_name, supervisor_code,  # ✅ Now stores `supervisor_code`
-                                        entry["date"], entry["advisor_name"]
-                                    ))
-                                else:
-                                    # If record does not exist, insert new row
-                                    cursor.execute("""
-                                        INSERT INTO Advisor_Data (date, timestamp, advisor_name, workstation_name, 
-                                                                supervisor_name, running_repair, free_service, 
-                                                                paid_service, body_shop, total, 
-                                                                align, balance, align_and_balance)
-                                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-                                    """, (
-                                        entry["date"], kolkata_time, entry["advisor_name"], workstation_name, 
-                                        supervisor_code,  # ✅ Now stores `supervisor_code`
-                                        entry["running_repair"], entry["free_service"], 
-                                        entry["paid_service"], entry["body_shop"], 
-                                        entry["total"], entry["align"], entry["balance"], entry["align_and_balance"]
-                                    ))
-
-                            conn.commit()
-                            st.success("Advisor data submitted successfully!")
-                            conn.close()
-                    except Exception as e:
-                            st.error(f"Error while saving data: {e}")
-                    # else:
-                    #     st.warning("No data entered. Please check at least one advisor row.")
-                    # finally:
-                    #     cursor.close()
-                    #     conn.close()
     finally:
         cursor.close()
         conn.close()
-
 
 
 #================================================

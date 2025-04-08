@@ -1868,6 +1868,9 @@ def validate_user_data(df):
     return True
 
 
+#--------------------------------------------------------------------
+#For future use: 
+#--------------------------------------------------------------------
 # Function to validate attendance data before inserting it into the Attendance table
 def validate_attendance_data(df):
     required_columns = ['Code', 'Name', 'Workstation_Name', 'Attendance_Date', 'In_Time', 'In_Time_Photo_Link', 'Out_Time', 'Out_Time_Photo_Link', 'Supervisor_Name', 'Shift_Duration']
@@ -1883,6 +1886,8 @@ def validate_attendance_data(df):
 
     return True
     conn.close()
+#--------------------------------------------------------------------
+#--------------------------------------------------------------------
 
 
 def overwrite_table(table_name, df):
