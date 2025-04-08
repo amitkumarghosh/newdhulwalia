@@ -330,9 +330,10 @@ def daily_advisor_data_entry(user_workstation_id,supervisor_name):
 
             if st.button("Submit Data"):
                 if rows_data:  # Only process if at least one row is edited
+                    conn = mysql.connector.connect(**mydb())
+                    cursor = conn.cursor()
                     try:
-                        with conn as conn:
-                            cursor = conn.cursor()
+                        
                             kolkata_time = get_kolkata_time()
 
                             # Fetch workstation name based on the logged-in user's code
@@ -392,11 +393,15 @@ def daily_advisor_data_entry(user_workstation_id,supervisor_name):
                                     ))
 
                             conn.commit()
-                        st.success("Advisor data submitted successfully!")
+                            st.success("Advisor data submitted successfully!")
+                            conn.close()
                     except Exception as e:
-                        st.error(f"Error while saving data: {e}")
-                else:
-                    st.warning("No data entered. Please check at least one advisor row.")
+                            st.error(f"Error while saving data: {e}")
+                    # else:
+                    #     st.warning("No data entered. Please check at least one advisor row.")
+                    # finally:
+                    #     cursor.close()
+                    #     conn.close()
     finally:
         cursor.close()
         conn.close()

@@ -17,7 +17,7 @@ import Advisor
 st.set_page_config(
     page_title="Dhuwalia Sites Management",
     # page_icon="👨‍👨‍👧‍👧"
-    page_icon='car.png'
+    page_icon='Car.png'
 )
 
 def mydb():
