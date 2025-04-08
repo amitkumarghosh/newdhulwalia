@@ -1882,30 +1882,77 @@ def validate_attendance_data(df):
             return False
 
     return True
-
-# Function to overwrite table data with the newly uploaded file
-def overwrite_table(table_name, df):
-    conn = mysql.connector.connect(**mydb())
-    
-    c = conn.cursor()
-    
-    # Delete existing data
-    c.execute(f"DELETE FROM {table_name}")
-
-    # Insert new data
-    if table_name == 'User_Credentials':
-        for _, row in df.iterrows():
-            c.execute("INSERT INTO User_Credentials (Code, Name, Password, Supervisor_Code, User_Role, Target) VALUES (%s, %s, %s, %s, %s, %s)",
-                      (row['Code'], row['Name'], row['Password'], row['Supervisor_Code'], row['User_Role'], row['Target']))
-    elif table_name == 'Attendance':
-        for _, row in df.iterrows():
-            c.execute('''INSERT INTO Attendance (Code, Name, Workstation_Name, Attendance_Date, In_Time, In_Time_Photo_Link, Out_Time, Out_Time_Photo_Link, Supervisor_Name, Shift_Duration) 
-                         VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)''',
-                      (row['Code'], row['Name'], row['Workstation_Name'], row['Attendance_Date'], row['In_Time'], row['In_Time_Photo_Link'], row['Out_Time'], row['Out_Time_Photo_Link'], row['Supervisor_Name'], row['Shift_Duration']))
-
-    conn.commit()
     conn.close()
 
+
+def overwrite_table(table_name, df):
+    import mysql.connector
+    import pandas as pd
+
+    conn = None
+    try:
+        conn = mysql.connector.connect(**mydb())
+        c = conn.cursor()
+
+        # Optional: Increase lock wait timeout if needed
+        # c.execute("SET innodb_lock_wait_timeout = 120")
+
+        # Clean NaN values and replace with None for SQL compatibility
+        df = df.where(pd.notnull(df), None)
+
+        # Use TRUNCATE instead of DELETE for better performance and less locking
+        c.execute(f"TRUNCATE TABLE {table_name}")
+
+        # Insert new data
+        if table_name == 'User_Credentials':
+            insert_query = """
+                INSERT INTO User_Credentials 
+                (Code, Name, Password, Supervisor_Code, User_Role, Target) 
+                VALUES (%s, %s, %s, %s, %s, %s)
+            """
+            data = [
+                (
+                    row['Code'], row['Name'], row['Password'],
+                    row['Supervisor_Code'], row['User_Role'], row['Target']
+                )
+                for _, row in df.iterrows()
+            ]
+            c.executemany(insert_query, data)
+
+        elif table_name == 'Attendance':
+            insert_query = """
+                INSERT INTO Attendance 
+                (Code, Name, Workstation_Name, Attendance_Date, In_Time, 
+                 In_Time_Photo_Link, Out_Time, Out_Time_Photo_Link, 
+                 Supervisor_Name, Shift_Duration) 
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            """
+            data = [
+                (
+                    row['Code'], row['Name'], row['Workstation_Name'], row['Attendance_Date'],
+                    row['In_Time'], row['In_Time_Photo_Link'], row['Out_Time'],
+                    row['Out_Time_Photo_Link'], row['Supervisor_Name'], row['Shift_Duration']
+                )
+                for _, row in df.iterrows()
+            ]
+            c.executemany(insert_query, data)
+
+        conn.commit()
+
+    except mysql.connector.Error as err:
+        print(f"Database error: {err}")
+        if conn:
+            conn.rollback()
+    except Exception as e:
+        print(f"Unexpected error: {e}")
+        if conn:
+            conn.rollback()
+    finally:
+        if conn:
+            conn.close()
+
+
+    
 # Display data in the table
 def display_table(table_name):
     conn = mysql.connector.connect(**mydb())
